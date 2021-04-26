@@ -1,4 +1,5 @@
 const REGION_START_INDEX = [ [0, 3, 6], [27, 30, 33], [54, 57, 60] ];
+let run = true;
 
 class SudokuSolver {
 
@@ -10,47 +11,75 @@ class SudokuSolver {
     return true;
   }
 
-  transformCoordinate(coordinate) {
-    coordinate = coordinate.toLowerCase();
-    return 9 * (coordinate.charCodeAt(0) - 'a'.charCodeAt()) + (coordinate.charCodeAt(1) - '1'.charCodeAt());
-  }
-
-  checkRowPlacement(puzzleString, index, value) {
+  checkRowPlacement(puzzleString, row, col, value) {
     if(value === '.') return true;
 
-    const START = 9 * Math.floor(index / 9);
-    const WHOLE_ROW = puzzleString.slice(START, START + 9);
-    const ROW = WHOLE_ROW.slice(0, index % 9) + WHOLE_ROW.slice(1 + index % 9);
+    const ROW = puzzleString.match(/.{9}/g)[row]
+      .split('')
+      .filter((_,i) => i !== col);
 
     return !ROW.includes(value); // returns true if given value is valid in index
   }
 
-  checkColPlacement(puzzleString, index, value) {
+  checkColPlacement(puzzleString, row, col, value) {
     if(value === '.') return true;
 
-    const COL = puzzleString.split('').filter((a, i) => i % 9 === index % 9 && i !== index);
+    const COL = puzzleString.split('')
+      .filter((_, i) => i % 9 === col && i !== 9 * row + col);
 
     return !COL.includes(value); // returns true if given value is valid in index
   }
 
-  checkRegionPlacement(puzzleString, index, value) {
+  checkRegionPlacement(puzzleString, row, col, value) {
     if(value === '.') return true;
 
-    const REGION_START = REGION_START_INDEX[Math.floor(index / 27)][Math.floor((index % 9) / 3)];
+    const PUZZLE = puzzleString.match(/.{9}/g);
+    const REGION_ROW = 3 * Math.floor(row / 3);
+    const REGION_COL = 3 * Math.floor(col / 3);
+
     let region = '';
     for(let i = 0; i < 3; i++){
       for(let j = 0; j < 3; j++){
-        let k = (REGION_START + j) + 9 * i;
-        if(k !== index) region += puzzleString[k];
+        if(REGION_ROW + i !== row && REGION_COL + j !== col) region += PUZZLE[REGION_ROW + i][REGION_COL + j];
       }
     }
 
     return !region.includes(value); // returns true if given value is valid in index
   }
 
+  isValid(puzzleString, row, col, value) {
+    let errors = [];
+
+    if(!this.checkRowPlacement(puzzleString, row, col, value)) errors.push('row');
+    if(!this.checkColPlacement(puzzleString, row, col, value)) errors.push('column');
+    if(!this.checkRegionPlacement(puzzleString, row, col, value)) errors.push('region');
+
+    if(errors.length === 0) return {valid: true}; // returns true if value is valid in a cell
+    return {valid: false, conflict: errors};
+  }
+
+  recur(sub_puzzle) { // array, length of 1 is fixed, more than 1 are possible values
+    if(sub_puzzle.every(a => a.length === 1)) return;
+
+    let index = sub_puzzle.findIndex(a => a.length > 1); // finds the first unfixed cell
+    let sub = sub_puzzle.map(a => a.length > 1 ? '.' : a).join(''); // used for checking if a value is valid in a cell
+    let vals = sub_puzzle[index]; // possible values
+
+    for(let test_val of vals.split('')) {
+      if(sub_puzzle.every(a => a.length === 1)) break;
+      if(this.checkValidValue(sub, index, test_val)){
+        sub_puzzle[index] = test_val;
+        this.recur(sub_puzzle);
+      }
+    }
+    if(!sub_puzzle.every(a => a.length === 1)) sub_puzzle[index] = vals;
+    
+    return;
+  }
+
   solve(puzzleString) {
     for(let i = 0; i < 81; i++) {
-      if([!this.checkRowPlacement(puzzleString, i, puzzleString[i]), !this.checkColPlacement(puzzleString, i, puzzleString[i]), !this.checkRegionPlacement(puzzleString, i, puzzleString[i])].some(a => a === true)) return { error: 'Puzzle cannot be solved' };
+      if(!this.checkValidValue(puzzleString, i, puzzleString[i])) return { error: 'Puzzle cannot be solved' };
     }
 
     let puzzle = puzzleString.split('').map((val, i) => {
@@ -68,60 +97,62 @@ class SudokuSolver {
       return possible;
     });
 
-    // console.log(puzzle);
+    function removeNotesFromFixed(row_start, region_start, i) {
+      for(let x = 0; x < 9; x++) {
+        // row
+        if(row_start + x !== i) puzzle[row_start + x] = puzzle[row_start + x].split('').filter(a => a !== puzzle[i]).join('');
+        // col
+        if(9 * x + (i % 9) !== i) puzzle[9 * x + (i % 9)] = puzzle[9 * x + (i % 9)].split('').filter(a => a !== puzzle[i]).join('');
+        // region
+        if((region_start + 9 * Math.floor(x / 3)) + x % 3 !== i) puzzle[(region_start + 9 * Math.floor(x / 3)) + x % 3].split('').filter(a => a !== puzzle[i]).join('');
+      }
+    }
+
+    function fixNumIfAlone(row_start, region_start, i) {
+      let possible = puzzle[i].split('');
+
+      let row = puzzle.slice(row_start, row_start + i % 9).concat(puzzle.slice(row_start + 1 + (i % 9))).join(''); // row, excluding the current index, i
+      let col = puzzle.filter((a, ind) => ind % 9 === i % 9 && ind !== i).join(''); // col, excluding the current index, i
+      let region = '';  // region, excluding the current index, i
+      for(let x = 0; x < 3; x++){
+        for(let j = 0; j < 3; j++){
+          let k = (region_start + j) + 9 * x;
+          if(k !== i) region += puzzle[k];
+        }
+      }
+
+      possible.forEach(pos => {
+        if(!row.includes(pos)) {
+          puzzle[i] = pos;
+          return;
+        }
+        if(!col.includes(pos)) {
+          puzzle[i] = pos;
+          return;
+        }
+        if(!region.includes(pos)) {
+          puzzle[i] = pos;
+          return;
+        }
+      });
+    }
 
     let count, sub = JSON.stringify(puzzle);
-    for(count = 0;; count++){
+    while(true){
       for(let i = 0; i < 81; i++) {
         let row_start = 9 * Math.floor(i / 9);
         let region_start = REGION_START_INDEX[Math.floor(i / 27)][Math.floor((i % 9) / 3)];
         
-        if(puzzle[i].length === 1) {
-          for(let x = 0; x < 9; x++) {
-            // row
-            if(row_start + x !== i) puzzle[row_start + x] = puzzle[row_start + x].split('').filter(a => a !== puzzle[i]).join('');
-            // col
-            if(9 * x + (i % 9) !== i) puzzle[9 * x + (i % 9)] = puzzle[9 * x + (i % 9)].split('').filter(a => a !== puzzle[i]).join('');
-            // region
-            if((region_start + 9 * Math.floor(x / 3)) + x % 3 !== i) puzzle[(region_start + 9 * Math.floor(x / 3)) + x % 3].split('').filter(a => a !== puzzle[i]).join('');
-          }
-        }
-        else {
-          let possible = puzzle[i].split('');
-
-          let row = puzzle.slice(row_start, i % 9).concat(puzzle.slice(1 + i % 9)).join(''); // row, excluding the current index, i
-          let col = puzzle.filter((a, ind) => ind % 9 === i % 9 && ind !== i).join(''); // col, excluding the current index, i
-          let region = '';  // region, excluding the current index, i
-          for(let x = 0; x < 3; x++){
-            for(let j = 0; j < 3; j++){
-              let k = (region_start + j) + 9 * x;
-              if(k !== i) region += puzzle[k];
-            }
-          }
-
-          possible.forEach(pos => {
-            if(!row.includes(pos)) {
-              puzzle[i] = pos;
-              return;
-            }
-            if(!col.includes(pos)) {
-              puzzle[i] = pos;
-              return;
-            }
-            if(!region.includes(pos)) {
-              puzzle[i] = pos;
-              return;
-            }
-          });
-        }
+        if(puzzle[i].length === 1) removeNotesFromFixed(row_start, region_start, i);
+        else fixNumIfAlone(row_start, region_start, i);
       }
 
       if(JSON.stringify(puzzle) === sub) break;
       else sub = JSON.stringify(puzzle);
     }
-
-    console.log('solved at count: ' + count);
-    console.log(puzzle.join(''));
+console.log(puzzle);
+    this.recur(puzzle);
+    console.log(puzzle);
     return puzzle.join('');
   }
 }
