@@ -29,23 +29,13 @@ module.exports = function (app) {
         return res.json({ error: 'Invalid value' });
       }
       
-      let index = solver.transformCoordinate(coordinate);
+      let row = 'abcdefghi'.indexOf(coordinate.toLowerCase()[0]),
+        col = Number(coordinate[1]) - 1;
 
-      let errors = [];
+      let check = solver.isValid(puzzle, row, col, value);
 
-      if(!solver.checkRowPlacement(puzzle, index, value)) errors.push('row');
-      if(!solver.checkColPlacement(puzzle, index, value)) errors.push('column');
-      if(!solver.checkRegionPlacement(puzzle, index, value)) errors.push('region');
-
-      if(errors.length === 0) {
-        console.log({valid: true});
-        return res.json({valid: true});
-      }
-      else {
-        console.log({valid: false, conflict: errors});
-        return res.json({valid: false, conflict: errors});
-      }
-      
+      console.log(check);
+      return res.json(check);      
     });
 
   app.route('/api/solve')
