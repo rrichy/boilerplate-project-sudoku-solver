@@ -10,49 +10,49 @@ let solver = new Solver();
 suite('UnitTests', () => {
   test('Logic handles a valid puzzle string of 81 characters', () => {
     puzzlesAndSolutions.map(a => a[0]).forEach(a => {
-      assert.isTrue(solver.validate(a), 'valid puzzle must return true');
+      assert.isTrue(solver.validate(a, 'A1', '1'), 'valid puzzle must return true');
     });
   });
 
   test('Logic handles a puzzle string with invalid characters (not 1-9 or .)', () => {
     puzzlesAndSolutions.map(a => a[0]).forEach(a => {
-      assert.deepEqual(solver.validate(a.replace('.', 'x')), { error: 'Invalid characters in puzzle' });
+      assert.deepEqual(solver.validate(a.replace('.', 'x'), 'A1', '1'), { error: 'Invalid characters in puzzle' });
     });
   });
 
   test('Logic handles a puzzle string that is not 81 characters in length', () => {
     puzzlesAndSolutions.map(a => a[0]).forEach(a => {
-      assert.deepEqual(solver.validate(a.slice(0, -1)), { error: 'Expected puzzle to be 81 characters long' });
+      assert.deepEqual(solver.validate(a.slice(0, -1), 'A1', '1'), { error: 'Expected puzzle to be 81 characters long' });
     });
   });
 
   test('Logic handles a valid row placement', () => {
-    assert.isTrue(solver.checkRowPlacement(defPuzzle, solver.transformCoordinate('A2'), '6'), 'valid row placement must return true');
+    assert.isTrue(solver.checkRowPlacement(defPuzzle.match(/.{9}/g).map(a => a.split('')), 0, 1, '6'), 'valid row placement must return true');
   });
 
   test('Logic handles an invalid row placement', () => {
-    assert.isFalse(solver.checkRowPlacement(defPuzzle, solver.transformCoordinate('A2'), '1'), 'invalid row placement must return false');
+    assert.isFalse(solver.checkRowPlacement(defPuzzle.match(/.{9}/g).map(a => a.split('')), 0, 1, '1'), 'invalid row placement must return false');
   });
 
   test('Logic handles a valid column placement', () => {
-    assert.isTrue(solver.checkColPlacement(defPuzzle, solver.transformCoordinate('A2'), '6'), 'valid column placement must return true');
+    assert.isTrue(solver.checkColPlacement(defPuzzle.match(/.{9}/g).map(a => a.split('')), 0, 1, '6'), 'valid column placement must return true');
   });
 
   test('Logic handles an invalid column placement', () => {
-    assert.isFalse(solver.checkColPlacement(defPuzzle, solver.transformCoordinate('A2'), '2'), 'invalid column placement must return false');
+    assert.isFalse(solver.checkColPlacement(defPuzzle.match(/.{9}/g).map(a => a.split('')), 0, 1, '2'), 'invalid column placement must return false');
   });
 
   test('Logic handles a valid region (3x3 grid) placement', () => {
-    assert.isTrue(solver.checkRegionPlacement(defPuzzle, solver.transformCoordinate('A2'), '6'), 'valid region placement must return true');
+    assert.isTrue(solver.checkRegionPlacement(defPuzzle.match(/.{9}/g).map(a => a.split('')), 0, 1, '6'), 'valid region placement must return true');
   });
 
   test('Logic handles an invalid region (3x3 grid) placement', () => {
-    assert.isFalse(solver.checkRegionPlacement(defPuzzle, solver.transformCoordinate('A2'), '2'), 'invalid region placement must return false');
+    assert.isFalse(solver.checkRegionPlacement(defPuzzle.match(/.{9}/g).map(a => a.split('')), 0, 1, '2'), 'invalid region placement must return false');
   });
 
   test('Valid puzzle strings pass the solver', () => {
     puzzlesAndSolutions.forEach(a => {
-      assert.isString(solver.solve(a[0]), 'valid puzzle must pass the solver');
+      assert.isString(solver.solve(a[0]).solution, 'valid puzzle must pass the solver');
     });
   });
 
@@ -62,7 +62,7 @@ suite('UnitTests', () => {
 
   test('Solver returns the the expected solution for an incomplete puzzle', () => {
     puzzlesAndSolutions.forEach(a => {
-      assert.equal(solver.solve(a[0]), a[1], 'incomplete but valid puzzles must return the solution');
+      assert.equal(solver.solve(a[0]).solution, a[1], 'incomplete but valid puzzles must return the solution');
     });
   });
 })
