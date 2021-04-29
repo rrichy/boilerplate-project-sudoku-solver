@@ -9,29 +9,16 @@ module.exports = function (app) {
     .post((req, res) => {
       let { puzzle, value, coordinate } = req.body;
 
-      if(!puzzle || !coordinate || !value) {
-        console.log({ error: 'Required field(s) missing' });
-        return res.json({ error: 'Required field(s) missing' });
-      }
-
-      let validation = solver.validate(puzzle);
+      let validation = solver.validate(puzzle, coordinate, value);
       if(validation !== true) {
         console.log(validation);
         return res.json(validation);
-      }
-
-      if(!'abcdefghi'.includes(coordinate.toLowerCase()[0]) || !'123456789'.includes(coordinate[1])) {
-        console.log({error: "Invalid coordinate"});
-        return res.json({error: "Invalid coordinate"});
-      }
-      if(!'123456789'.includes(value)) {
-        console.log({ error: 'Invalid value' });
-        return res.json({ error: 'Invalid value' });
       }
       
       let row = 'abcdefghi'.indexOf(coordinate.toLowerCase()[0]),
         col = Number(coordinate[1]) - 1;
 
+      puzzle = puzzle.match(/.{9}/g).map(a => a.split(''));
       let check = solver.isValid(puzzle, row, col, value);
 
       console.log(check);
@@ -42,24 +29,19 @@ module.exports = function (app) {
     .post((req, res) => {
       const { puzzle } = req.body;
 
-      if(!puzzle) {
-        console.log({ error: 'Required field missing' });
-        return res.json({ error: 'Required field missing' });
-      }
+      let result = solver.solve(puzzle);
+      console.log(result);
+      res.json(result);
 
-      let validation = solver.validate(puzzle);
-      if(validation !== true) {
-        console.log(validation);
-        return res.json(validation);
-      }
+      // let validation = solver.validate(puzzle);
 
-      let attempt = solver.solve(puzzle);
-      if(typeof attempt === 'object') {
-        console.log(attempt);
-        return res.json(attempt);
-      }
+      // let attempt = solver.solve(puzzle);
+      // if(typeof attempt === 'object') {
+      //   console.log(attempt);
+      //   return res.json(attempt);
+      // }
 
-      //console.log(solver.solve(puzzle));
-      return res.json({solution: solver.solve(puzzle)});
+      // //console.log(solver.solve(puzzle));
+      // return res.json({solution: solver.solve(puzzle)});
     });
 };
