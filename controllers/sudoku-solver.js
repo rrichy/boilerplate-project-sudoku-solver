@@ -1,6 +1,3 @@
-const REGION_START_INDEX = [ [0, 3, 6], [27, 30, 33], [54, 57, 60] ];
-let run = true;
-
 class SudokuSolver {
 
   validate(puzzleString, coordinate, value) {
@@ -8,7 +5,7 @@ class SudokuSolver {
 
     if(!puzzleString.split('').every(char => '123456789.'.includes(char))) return { error: 'Invalid characters in puzzle' };
     
-    if(puzzleString.length !== 81) return { "error": "Expected puzzle to be 81 characters long" };
+    if(puzzleString.length !== 81) return { error: "Expected puzzle to be 81 characters long" };
 
     if(!'abcdefghi'.includes(coordinate.toLowerCase()[0]) || !'123456789'.includes(coordinate[1])) return {error: "Invalid coordinate"};
     if(!'123456789'.includes(value)) return { error: 'Invalid value' };
@@ -71,7 +68,7 @@ class SudokuSolver {
     if(!puzzleString) return { error: 'Required field missing' };
     if(!puzzleString.split('').every(char => '123456789.'.includes(char))) return { error: 'Invalid characters in puzzle' };
     
-    if(puzzleString.length !== 81) return { "error": "Expected puzzle to be 81 characters long" };
+    if(puzzleString.length !== 81) return { error: "Expected puzzle to be 81 characters long" };
 
     let puzzle = puzzleString.match(/.{9}/g).map(a => a.split('').map(b => b === '.' ? 0 : Number(b)));
     for(let i = 0; i < 9; i++) {
@@ -80,33 +77,64 @@ class SudokuSolver {
       }
     }
     let backtrack = 0;
-/*
-    const implication = (arrayPuzzle, row, col, val) => {
-      const REGION_ROW = 3 * Math.floor(row / 3);
-      const REGION_COL = 3 * Math.floor(col / 3);
 
+    const implication = (arrayPuzzle, row, col, val) => {
       arrayPuzzle[row][col] = val;
       let impl = [[row, col, val]];
 
-      for(let i = 0; i < 9; i++) {
-        let note = new Set([1,2,3,4,5,6,7,8,9]),
-          cellinfo = [];
+      let done = false;
 
-        for(let y = REGION_ROW; y < REGION_ROW + 3; y++) {
-          for(let x = REGION_COL; x < REGION_COL + 3; x++) {
-            if(arrayPuzzle[y][x] !== 0) note.delete(arrayPuzzle[y][x]);
+      while(done !== true){
+        done = true;
+        for(let i = 0; i < 9; i++) {
+          const REGION_ROW = 3 * Math.floor(i / 3);
+          const REGION_COL = 3 * (i % 3);
+
+          let note = new Set([1,2,3,4,5,6,7,8,9]),
+            cellinfo = [];
+
+          for(let y = REGION_ROW; y < REGION_ROW + 3; y++) {
+            for(let x = REGION_COL; x < REGION_COL + 3; x++) {
+              if(arrayPuzzle[y][x] !== 0) note.delete(arrayPuzzle[y][x]);
+            }
+          }
+
+          for(let y = REGION_ROW; y < REGION_ROW + 3; y++) {
+            for(let x = REGION_COL; x < REGION_COL + 3; x++) {
+              if(arrayPuzzle[y][x] === 0) cellinfo.push([y, x, new Set(note)]);
+            }
+          }
+
+          for(let clue of cellinfo) {
+
+            for(let a of arrayPuzzle[clue[0]]) {
+              clue[2].delete(a);
+            }
+
+            for(let a of arrayPuzzle.reduce((acc, b) => acc.concat(b[clue[1]]), [])) {
+              clue[2].delete(a);
+            }
+
+            if(clue[2].size === 1) {
+              let value = clue[2].values().next().value;
+              if(this.isValid(arrayPuzzle, clue[0], clue[1], value).valid) {
+                arrayPuzzle[clue[0]][clue[1]] = value;
+                impl.push([clue[0], clue[1], value]);
+                done = false;
+              }
+            }
           }
         }
-
-        for(let y = REGION_ROW; y < REGION_ROW + 3; y++) {
-          for(let x = REGION_COL; x < REGION_COL + 3; x++) {
-            if(arrayPuzzle[y][x] === 0) cellinfo.push([y, x, new Set(note)]);
-          }
-        }
-
-        
       }
-    };*/
+
+      return impl;
+    };
+
+    const undoImplication = (arrayPuzzle, implication) => {
+      for(let impl of implication) {
+        arrayPuzzle[impl[0]][impl[1]] = 0;
+      }
+    }
 
     const recursion = (arrayPuzzle) => { // 2-dim array
       let [row, col] = this.findEmpty(arrayPuzzle);
@@ -114,11 +142,12 @@ class SudokuSolver {
 
       for(let n = 1; n < 10; n++) {
         if(this.isValid(arrayPuzzle, row, col, n).valid) {
-          arrayPuzzle[row][col] = n;
+          let impl = implication(arrayPuzzle, row, col, n);
+          // console.log(impl);
           if(recursion(arrayPuzzle)) return true;
 
           backtrack++;
-          arrayPuzzle[row][col] = 0;
+          undoImplication(arrayPuzzle, impl);
         }
       }
 
